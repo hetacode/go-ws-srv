@@ -1,3 +1,15 @@
+# Go-WS-Srv
+## Purpose
+Go-WS-Srv it's just a small wrapper for [Gorilla Websocket](https://github.com/gorilla/websocket) library that simplify clients connections process.  
+> Dev version! Only for testing
+
+## Installation
+
+`go get github.com/hetacode/go-ws-srv`
+
+## Example
+
+```golang
 package main
 
 import (
@@ -22,3 +34,4 @@ func main() {
 	}
 	s.Serve()
 }
+```
