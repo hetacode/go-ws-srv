@@ -11,7 +11,10 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true }, // TODO: just for beginning phase
+}
+
+type ServerConfig struct {
+	Origin string // * - all (no check)
 }
 
 type Server struct {
@@ -22,10 +25,21 @@ type Server struct {
 	OnDisconnected func(*Client)
 }
 
-func NewServer(address, endpoint string) *Server {
+func NewServer(address, endpoint string, config ServerConfig) *Server {
 	s := &Server{
 		address: address,
 	}
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		log.Print("origin: " + r.RemoteAddr)
+		if config.Origin == "*" {
+			return true
+		}
+		if config.Origin == r.RemoteAddr {
+			return true
+		}
+		return false
+	}
+
 	http.HandleFunc(endpoint, s.handler)
 
 	return s
@@ -50,7 +64,7 @@ func (s *Server) handler(rw http.ResponseWriter, r *http.Request) {
 	connection.WriteMessage(websocket.TextMessage, []byte("client_id="+client.ID))
 	s.OnConnected(client)
 	for {
-		_, msg, err := connection.ReadMessage()
+		_, msg, err := client.connection.ReadMessage()
 
 		if err != nil {
 			if cerr, ok := err.(*websocket.CloseError); ok {

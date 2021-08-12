@@ -7,12 +7,12 @@ import (
 )
 
 func main() {
-	s := gowssrv.NewServer(":8080", "/")
+	s := gowssrv.NewServer(":8080", "/", gowssrv.ServerConfig{Origin: "*"})
 	s.OnConnected = func(c *gowssrv.Client) {
 		log.Printf("client %s OnConnected", c.ID)
 	}
 	s.OnMessage = func(c *gowssrv.Client, s string) {
-		log.Printf("client %s msg: %s", c.ID, s)
+		// log.Printf("client %s msg: %s", c.ID, s)
 	}
 	s.OnDisconnected = func(c *gowssrv.Client) {
 		log.Printf("client %s OnDisconnected", c.ID)
