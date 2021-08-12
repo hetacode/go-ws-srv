@@ -16,40 +16,52 @@ var upgrader = websocket.Upgrader{
 
 type Server struct {
 	address        string
-	OnConnected    func(Client)
-	OnError        func(Client, error)
-	OnDisconnected func(Client)
+	OnConnected    func(*Client)
+	OnMessage      func(*Client, string)
+	OnError        func(*Client, error)
+	OnDisconnected func(*Client)
 }
 
 func NewServer(address, endpoint string) *Server {
-	http.HandleFunc(endpoint, func(rw http.ResponseWriter, r *http.Request) {
-		connection, err := upgrader.Upgrade(rw, r, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-		clientID, _ := uuid.GenerateUUID()
-		client := &Client{
-			connection: connection,
-			ID:         clientID,
-		}
-
-		// Send client id to the jus connected client on startup
-		connection.WriteMessage(websocket.TextMessage, []byte("client_id="+client.ID))
-		for {
-			_, msg, err := connection.ReadMessage()
-			if err != nil {
-				return
-			}
-			panic(msg)
-		}
-	})
 	s := &Server{
 		address: address,
 	}
+	http.HandleFunc(endpoint, s.handler)
 
 	return s
 }
 
 func (s *Server) Serve() {
 	http.ListenAndServe(s.address, nil)
+}
+
+func (s *Server) handler(rw http.ResponseWriter, r *http.Request) {
+	connection, err := upgrader.Upgrade(rw, r, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	clientID, _ := uuid.GenerateUUID()
+	client := &Client{
+		connection: connection,
+		ID:         clientID,
+	}
+
+	// Send client id to the jus connected client on startup
+	connection.WriteMessage(websocket.TextMessage, []byte("client_id="+client.ID))
+	s.OnConnected(client)
+	for {
+		_, msg, err := connection.ReadMessage()
+
+		if err != nil {
+			if cerr, ok := err.(*websocket.CloseError); ok {
+				log.Printf("client %s is OnDisconnected | err: %s", client.ID, cerr.Error())
+				s.OnDisconnected(client)
+			} else {
+				log.Printf("client %s is OnError | err: %s", client.ID, cerr.Error())
+				s.OnError(client, err)
+			}
+			return
+		}
+		s.OnMessage(client, string(msg))
+	}
 }
